@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>便签</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: radial-gradient(circle at center, #888888 0%, #444444 50%, #000000 100%);
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #ffffff;
+            margin-bottom: 20px;
+            font-size: 28px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 搜索框样式 */
+        .search-box {
+            width: 100%;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-box:focus {
+            background: rgba(255, 255, 255, 1);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .search-box::placeholder {
+            color: #999;
+        }
+
+        /* 输入区域样式 */
+        .input-area {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .input-area textarea {
+            width: 100%;
+            min-height: 80px;
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 16px;
+            resize: vertical;
+            outline: none;
+            background: rgba(255, 255, 255, 0.8);
+            margin-bottom: 10px;
+        }
+
+        .btn-add {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-add:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 便签列表样式 */
+        .notes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .note-item {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            position: relative;
+            animation: slideIn 0.3s ease;
+            transition: all 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .note-content {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #333;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .note-time {
+            font-size: 12px;
+            color: #999;
+            margin-top: 10px;
+        }
+
+        .btn-delete {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-delete:active {
+            transform: scale(0.9);
+            background: #ff3838;
+        }
+
+        /* 空状态提示 */
+        .empty-state {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            padding: 40px 20px;
+            font-size: 16px;
+        }
+
+        /* 搜索结果提示 */
+        .search-result-info {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        /* 适配小屏幕设备 */
+        @media (max-width: 480px) {
+            body {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 24px;
+                margin-bottom: 15px;
+            }
+
+            .search-box {
+                padding: 10px 14px;
+                font-size: 15px;
+            }
+
+            .input-area textarea {
+                font-size: 15px;
+                min-height: 70px;
+            }
+
+            .btn-add {
+                padding: 10px;
+                font-size: 15px;
+            }
+
+            .note-content {
+                font-size: 15px;
+            }
+        }
+
+        /* 适配横屏 */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .input-area textarea {
+                min-height: 50px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📝 我的便签</h1>
+        
+        <!-- 搜索框 -->
+        <input 
+            type="text" 
+            class="search-box" 
+            id="searchBox" 
+            placeholder="🔍 搜索便签..."
+        >
+        
+        <!-- 搜索结果显示 -->
+        <div id="searchResultInfo" class="search-result-info" style="display: none;"></div>
+
+        <!-- 添加便签区域 -->
+        <div class="input-area">
+            <textarea 
+                id="noteInput" 
+                placeholder="输入便签内容..."
+            ></textarea>
+            <button class="btn-add" id="addBtn">➕ 添加便签</button>
+        </div>
+
+        <!-- 便签列表 -->
+        <div class="notes-list" id="notesList"></div>
+    </div>
+
+    <script>
+        // 便签数据管理
+        let notes = JSON.parse(localStorage.getItem('notes')) || [];
+        let searchKeyword = '';
+
+        // DOM 元素
+        const noteInput = document.getElementById('noteInput');
+        const addBtn = document.getElementById('addBtn');
+        const notesList = document.getElementById('notesList');
+        const searchBox = document.getElementById('searchBox');
+        const searchResultInfo = document.getElementById('searchResultInfo');
+
+        // 保存便签到本地存储
+        function saveNotes() {
+            localStorage.setItem('notes', JSON.stringify(notes));
+        }
+
+        // 格式化时间
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}`;
+        }
+
+        // 渲染便签列表
+        function renderNotes() {
+            // 过滤便签（根据搜索关键词）
+            let filteredNotes = notes;
+            if (searchKeyword) {
+                filteredNotes = notes.filter(note => 
+                    note.content.toLowerCase().includes(searchKeyword.toLowerCase())
+                );
+                
+                // 显示搜索结果信息
+                searchResultInfo.style.display = 'block';
+                searchResultInfo.textContent = `找到 ${filteredNotes.length} 条相关便签`;
+            } else {
+                searchResultInfo.style.display = 'none';
+            }
+
+            // 清空列表
+            notesList.innerHTML = '';
+
+            // 如果没有便签，显示空状态
+            if (filteredNotes.length === 0) {
+                notesList.innerHTML = `
+                    <div class="empty-state">
+                        ${searchKeyword ? '没有找到匹配的便签' : '暂无便签，添加第一条吧！'}
+                    </div>
+                `;
+                return;
+            }
+
+            // 渲染每个便签（按时间倒序）
+            filteredNotes.reverse().forEach(note => {
+                const noteElement = document.createElement('div');
+                noteElement.className = 'note-item';
+                noteElement.innerHTML = `
+                    <button class="btn-delete" onclick="deleteNote(${note.id})">×</button>
+                    <div class="note-content">${escapeHtml(note.content)}</div>
+                    <div class="note-time">${formatTime(note.timestamp)}</div>
+                `;
+                notesList.appendChild(noteElement);
+            });
+        }
+
+        // HTML 转义，防止 XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 添加便签
+        function addNote() {
+            const content = noteInput.value.trim();
+            
+            if (!content) {
+                alert('请输入便签内容！');
+                return;
+            }
+
+            const newNote = {
+                id: Date.now(),
+                content: content,
+                timestamp: Date.now()
+            };
+
+            notes.push(newNote);
+            saveNotes();
+            renderNotes();
+            
+            // 清空输入框
+            noteInput.value = '';
+            noteInput.focus();
+        }
+
+        // 删除便签
+        function deleteNote(id) {
+            if (confirm('确定要删除这条便签吗？')) {
+                notes = notes.filter(note => note.id !== id);
+                saveNotes();
+                renderNotes();
+            }
+        }
+
+        // 搜索便签
+        function searchNotes(keyword) {
+            searchKeyword = keyword.trim();
+            renderNotes();
+        }
+
+        // 事件监听
+        addBtn.addEventListener('click', addNote);
+
+        // 回车键添加便签（Ctrl+Enter 或 Cmd+Enter）
+        noteInput.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                addNote();
+            }
+        });
+
+        // 搜索框输入事件（实时搜索）
+        searchBox.addEventListener('input', (e) => {
+            searchNotes(e.target.value);
+        });
+
+        // 初始化渲染
+        renderNotes();
+
+        // 使 deleteNote 函数在全局可用
+        window.deleteNote = deleteNote;
+    </script>
+</body>
+</html>

@@ -4,7 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>观心少年2组 - 数据统计</title>
+    <!-- 预加载字体，避免刷新时字体闪烁切换 -->
+    <link rel="preload" href="../fonts/PingFangSC-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="../fonts/PingFangSC-Medium.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="../fonts/PingFangSC-Semibold.woff2" as="font" type="font/woff2" crossorigin>
     <style>
+        /* ===== 本地字体声明 ===== */
+        @font-face {
+            font-family: 'PingFang SC';
+            src: url('../fonts/PingFangSC-Regular.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: block;
+        }
+        @font-face {
+            font-family: 'PingFang SC';
+            src: url('../fonts/PingFangSC-Medium.woff2') format('woff2');
+            font-weight: 500;
+            font-style: normal;
+            font-display: block;
+        }
+        @font-face {
+            font-family: 'PingFang SC';
+            src: url('../fonts/PingFangSC-Semibold.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+            font-display: block;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -14,7 +41,7 @@
         body {
             min-height: 100vh;
             min-height: -webkit-fill-available;
-            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            font-family: 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
             background: linear-gradient(135deg, #e8f0f8 0%, #dfe9f3 30%, #eef3f9 60%, #e3ecf5 100%);
             overflow-x: hidden;
             overflow-y: auto;
@@ -81,7 +108,7 @@
 
         .header-section h1 {
             font-size: 1.8em;
-            font-weight: bold;
+            font-weight: 600;
             color: #000;
             letter-spacing: 4px;
             margin: 0 0 4px 0;
@@ -126,7 +153,7 @@
 
         .card-value {
             font-size: 2.4em;
-            font-weight: bold;
+            font-weight: 600;
             color: #000;
         }
 
@@ -326,7 +353,7 @@
 
         .weather-temp {
             font-size: 2.6em;
-            font-weight: bold;
+            font-weight: 600;
             color: #000;
             margin-top: 4px;
         }

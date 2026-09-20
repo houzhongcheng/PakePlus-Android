@@ -357,22 +357,54 @@ img{display:block}
   function uploadURL(path) { return path ? ('/uploads/' + path) : ''; }
 
   /* ============ 数据接口（全部实时，禁用缓存） ============ */
-  async function api(method, path, body) {
-    var init = { method: method, credentials: 'same-origin', headers: {} };
-    if (method === 'GET') init.cache = 'no-store';
-    if (body !== undefined && body !== null) {
-      init.headers['Content-Type'] = 'application/json';
-      init.body = JSON.stringify(body);
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function abortPair(ms) {
+    if (typeof AbortController === 'undefined') return { signal: null, clear: function () {} };
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { try { ctrl.abort(); } catch (e) { /* ignore */ } }, ms);
+    return { signal: ctrl.signal, clear: function () { clearTimeout(timer); } };
+  }
+  async function api(method, path, body, opts) {
+    opts = opts || {};
+    async function once() {
+      var ac = abortPair(opts.timeout || 25000);
+      var init = { method: method, credentials: 'same-origin', headers: {} };
+      if (ac.signal) init.signal = ac.signal;
+      if (method === 'GET') init.cache = 'no-store';
+      if (body !== undefined && body !== null) {
+        init.headers['Content-Type'] = 'application/json';
+        init.body = JSON.stringify(body);
+      }
+      try {
+        var res = await fetch(path, init);
+        ac.clear();
+        return res;
+      } catch (e) {
+        ac.clear();
+        var err = new Error('网络不太顺畅，请检查网络后重试');
+        err.status = 0;
+        err.isNetwork = true;
+        throw err;
+      }
     }
     var res;
-    try { res = await fetch(path, init); }
-    catch (e) { throw new Error('网络不太顺畅，请检查网络后重试'); }
+    try {
+      res = await once();
+    } catch (e) {
+      if (e.isNetwork && method === 'GET') {
+        /* 只读请求：网络抖动自动重试一次（手机信号不稳时很常见） */
+        await sleep(900);
+        res = await once();
+      } else {
+        throw e;
+      }
+    }
     var data = null;
     try { data = await res.json(); } catch (e) { data = null; }
     if (!res.ok) {
-      var err = new Error((data && data.error) || ('请求失败（' + res.status + '）'));
-      err.status = res.status;
-      throw err;
+      var err2 = new Error((data && data.error) || ('请求失败（' + res.status + '）'));
+      err2.status = res.status;
+      throw err2;
     }
     return data || {};
   }
@@ -436,11 +468,18 @@ img{display:block}
     } catch (e) { registration = 'closed'; }
 
     var u = null;
-    try {
-      var d = await api('GET', '/api/me');
-      u = d.user || null;
-      if (d.profile) profiles.set(String(d.profile.id), d.profile);
-    } catch (e) { u = null; }
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        var d = await api('GET', '/api/me');
+        u = d.user || null;
+        if (d.profile) profiles.set(String(d.profile.id), d.profile);
+        break;
+      } catch (e) {
+        if (e.isNetwork && attempt === 0) { await sleep(900); continue; }
+        u = null;
+        break;
+      }
+    }
 
     var bootEl = $('boot');
     bootEl.classList.add('off');
@@ -491,8 +530,8 @@ img{display:block}
 
   /* ============ 三、主界面 ============ */
   var tab = 'photos';
-  var photos = [], photosEnded = false, photosLoading = false;
-  var posts = [], postsEnded = false, postsLoading = false;
+  var photos = [], photosEnded = false, photosLoading = false, photosAt = 0;
+  var posts = [], postsEnded = false, postsLoading = false, postsAt = 0;
 
   function enterApp() {
     $('shell').classList.remove('hidden');
@@ -558,7 +597,7 @@ img{display:block}
     if ($('phMore')) $('phMore').onclick = function () { loadPhotos(false); };
   }
 
-  async function loadPhotos(reset) {
+  async function loadPhotos(reset, silent) {
     if (photosLoading) return;
     photosLoading = true;
     try {
@@ -576,9 +615,10 @@ img{display:block}
         (lk.mine || []).forEach(function (id) { photoLikes.mine.add(id); });
       }
       photosRender(!reset);
+      photosAt = Date.now();
     } catch (e) {
       if (e.status === 401) { photosLoading = false; return showAuth(); }
-      toast(e.message, true);
+      if (!silent) toast(e.message, true);
     }
     photosLoading = false;
   }
@@ -692,7 +732,7 @@ img{display:block}
     if ($('foMore')) $('foMore').onclick = function () { loadPosts(false); };
   }
 
-  async function loadPosts(reset) {
+  async function loadPosts(reset, silent) {
     if (postsLoading) return;
     postsLoading = true;
     try {
@@ -709,9 +749,10 @@ img{display:block}
         Object.keys(counts).forEach(function (k) { postCounts.set(Number(k), counts[k]); });
       }
       postsRender(!reset);
+      postsAt = Date.now();
     } catch (e) {
       if (e.status === 401) { postsLoading = false; return showAuth(); }
-      toast(e.message, true);
+      if (!silent) toast(e.message, true);
     }
     postsLoading = false;
   }
@@ -929,13 +970,20 @@ img{display:block}
   }
 
   async function uploadBlob(blob, kind) {
+    var ac = abortPair(60000);
+    var init = {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': blob.type || 'image/jpeg' }, body: blob
+    };
+    if (ac.signal) init.signal = ac.signal;
     var res;
     try {
-      res = await fetch('/api/upload?kind=' + kind, {
-        method: 'POST', credentials: 'same-origin',
-        headers: { 'Content-Type': blob.type || 'image/jpeg' }, body: blob
-      });
-    } catch (e) { throw new Error('网络不太顺畅，请重试'); }
+      res = await fetch('/api/upload?kind=' + kind, init);
+      ac.clear();
+    } catch (e) {
+      ac.clear();
+      throw new Error('网络不太顺畅，请重试');
+    }
     var data = null;
     try { data = await res.json(); } catch (e) { data = null; }
     if (!res.ok) throw new Error((data && data.error) || '上传失败');
@@ -1110,11 +1158,17 @@ img{display:block}
       if (p) openPost(Number(p.getAttribute('data-post')));
     });
 
-    /* 回到前台自动刷新当前页（数据实时） */
+    /* 回到前台自动刷新当前页（数据实时；30 秒内不重复刷新，失败静默不打扰） */
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState !== 'visible' || !me) return;
-      if (tab === 'photos' && viewerIdx < 0 && !$('viewer')) { photos = []; loadPhotos(true); }
-      else if (tab === 'forum' && !$('detail')) { posts = []; loadPosts(true); }
+      var now = Date.now();
+      if (tab === 'photos' && viewerIdx < 0 && !$('viewer') && now - photosAt > 30000) {
+        photos = [];
+        loadPhotos(true, true);
+      } else if (tab === 'forum' && !$('detail') && now - postsAt > 30000) {
+        posts = [];
+        loadPosts(true, true);
+      }
     });
   }
 
